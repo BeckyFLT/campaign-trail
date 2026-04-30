@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="icon" href="assets/icons/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="assets/icons/favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/icons/apple-icon-180x180.png">
+  <title>Campaign Trail - Stop Reform</title>
+  <meta property="og:title" content="Campaign Trail - Stop Reform" />
+  <meta property="og:description" content="Help Spanner, Ed, Keir and John collect every last vote - and stop Posh Nige." />
+  <meta property="og:image" content="https://tacticalvote.co.uk/game/assets/game-og.png" />
+  <meta property="og:url" content="https://tacticalvote.co.uk/game/" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #444444; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100dvh; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    #game { width: 100vw; height: 100dvh; max-width: 960px; max-height: 540px; }
+
+    #hud {
+      display: none;
+      background: rgba(0,0,0,0.78);
+      color: #fff;
+      font-family: 'Montserrat', sans-serif;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 8px 16px;
+      gap: 16px;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      pointer-events: none;
+    }
+    #hud-controls {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      gap: 28px;
+      font-weight: normal;
+      font-size: 13px;
+      color: #ddeebb;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+    #hud-controls:empty { display: none; }
+    #hud-lives[hidden] { display: none; }
+    .hud-cell { display: flex; align-items: center; }
+    .hud-cell-left  { flex-direction: row; gap: 16px; }
+    .hud-cell-right { flex-direction: row; gap: 10px; }
+    .hud-reset-label { display: none; font-size: 14px; color: #ddeebb; }
+    /* Desktop (non-touch): bar sits above the canvas, capped to game width */
+    body.is-desktop #hud:not([hidden]) {
+      display: flex;
+      width: 100%;
+      max-width: 960px;
+    }
+    body.is-desktop #hud-reset { pointer-events: auto; }
+    /* Mobile: stack lives below votes on the left, show "reset level" label on the right */
+    @media (pointer: coarse) {
+      .hud-cell-left  { flex-direction: column; gap: 2px; align-items: flex-start; }
+      .hud-cell-right { flex-direction: row;    gap: 10px; }
+      .hud-reset-label { display: inline; }
+    }
+    #hud-reset {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.45);
+      color: #fff;
+      font-size: 18px;
+      font-weight: bold;
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      pointer-events: auto;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+      user-select: none; -webkit-user-select: none;
+      padding: 0; line-height: 1;
+    }
+    #hud-reset:active { background: rgba(255,255,255,0.35); }
+    @media (pointer: coarse) {
+      body { display: flex; flex-direction: column; align-items: stretch; overflow: hidden; }
+      #game { width: 100%; max-width: none; max-height: none; flex: 1; min-height: 0; }
+      #hud:not([hidden]) { display: flex; }
+    }
+    @media (pointer: coarse) and (orientation: landscape) {
+      body { display: block; }
+      #game {
+        width: 100vw;
+        height: calc(100dvh - env(safe-area-inset-bottom));
+        margin-bottom: env(safe-area-inset-bottom);
+      }
+      #hud:not([hidden]) {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        z-index: 9;
+        background: transparent;
+        padding-top: max(10px, env(safe-area-inset-top));
+        padding-left: max(16px, env(safe-area-inset-left));
+        padding-right: max(16px, env(safe-area-inset-right));
+      }
+      #hud > .hud-cell {
+        background: rgba(0,0,0,0.65);
+        padding: 6px 12px;
+        border-radius: 6px;
+      }
+    }
+
+    #rotate-banner {
+      display: none;
+      background: #ffd60a;
+      color: #1a1a2e;
+      text-align: center;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    @media (pointer: coarse) and (orientation: portrait) {
+      #rotate-banner { display: block; }
+    }
+
+    #mobile-controls { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+    #mobile-controls[hidden] { display: none; }
+    .mc-side { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); display: flex; gap: 14px; align-items: flex-end; }
+    .mc-left  { left: max(18px, env(safe-area-inset-left)); }
+    .mc-right { right: max(18px, env(safe-area-inset-right)); }
+    .mc-btn {
+      display: none;
+      pointer-events: auto;
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      border: 2px solid rgba(255,255,255,0.55);
+      color: rgba(255,255,255,0.95);
+      font-size: 30px;
+      line-height: 1;
+      align-items: center; justify-content: center;
+      touch-action: none;
+      user-select: none; -webkit-user-select: none;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+      font-family: 'Montserrat', sans-serif;
+    }
+    .mc-btn.show { display: flex; }
+    .mc-btn.active { background: rgba(255,255,255,0.45); }
+
+    #called-it-badge {
+      position: fixed;
+      bottom: -1px;
+      left: -1px;
+      padding: 7px 10px;
+      font-family: 'Montserrat', 'system-ui', sans-serif;
+      font-size: 14px;
+      font-weight: bold;
+      background: #C4663E;
+      color: #ffffff;
+      text-decoration: none;
+      z-index: 10000;
+      border-top-right-radius: 12px;
+      border: 1px solid #ffffff;
+      line-height: 1;
+    }
+    @media (pointer: coarse) {
+      #called-it-badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="rotate-banner">↻ Rotate to landscape for the best experience</div>
+  <div id="hud" hidden>
+    <div class="hud-cell hud-cell-left">
+      <span>Votes: <span id="hud-votes-current">0</span> / <span id="hud-votes-total">8</span></span>
+      <span id="hud-lives" hidden>Lives: <span id="hud-lives-count">3</span></span>
+    </div>
+    <span id="hud-controls"></span>
+    <div class="hud-cell hud-cell-right">
+      <span class="hud-reset-label">reset level</span>
+      <button id="hud-reset" aria-label="Restart level">↻</button>
+    </div>
+  </div>
+  <div id="game"></div>
+  <div id="mobile-controls" hidden>
+    <div class="mc-side mc-left">
+      <button class="mc-btn" data-key="left" aria-label="Left">◀</button>
+      <button class="mc-btn" data-key="right" aria-label="Right">▶</button>
+    </div>
+    <div class="mc-side mc-right">
+      <button class="mc-btn" data-key="down" aria-label="Down">▼</button>
+      <button class="mc-btn" data-key="up" aria-label="Up / Jump">▲</button>
+      <button class="mc-btn" data-key="action" aria-label="Action">✱</button>
+    </div>
+  </div>
+  <a id="called-it-badge" href="https://called-it.uk" target="_blank" rel="noopener">👑 Play Called It!</a>
+  <script async src="https://vibej.am/2026/widget.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.min.js"></script>
+  <script src="scenes/Sfx.js"></script>
+  <script src="scenes/Controls.js"></script>
+  <script src="scenes/MobileControls.js"></script>
+  <script src="scenes/BootScene.js"></script>
+  <script src="scenes/IntroCardScene.js"></script>
+  <script src="scenes/NarrativeScene.js"></script>
+  <script src="scenes/VictoryScene.js"></script>
+  <script src="scenes/Level1Spanner.js"></script>
+  <script src="scenes/Level2Ed.js"></script>
+  <script src="scenes/Level3Keir.js"></script>
+  <script src="scenes/Level4John.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
